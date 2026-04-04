@@ -81,16 +81,13 @@ Longer term, the goal is to move beyond recommendations and into decision suppor
 ## Screenshots
 
 ### Homepage
-
-![Homepage](assets/screenshots/home.png)
+![Homepage](public/screenshots/home.png)
 
 ### Intake Flow
-
-![Start Page](assets/screenshots/start.png)
+![Start Page](public/screenshots/start.png)
 
 ### Results
-
-![Results Page](assets/screenshots/results.png)
+![Results Page](public/screenshots/results.png)
 
 ---
 
