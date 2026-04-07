@@ -1,18 +1,18 @@
-# WakeIQ
+# LakeLifeIQ
 
-WakeIQ is a decision tool for recreational boating.
+LakeLifeIQ is a decision tool for recreational boating.
 
 Most people don’t just need help picking a boat. They need help figuring out what actually makes sense for how they use the water — including their dock setup, accessories, and long-term ownership decisions.
 
-WakeIQ is designed to answer a simpler, more useful question:
+LakeLifeIQ is designed to answer a simpler, more useful question:
 
 What should I do next?
 
 ---
 
-## What WakeIQ Does
+## What LakeLifeIQ Does
 
-Instead of acting like a marketplace or search tool, WakeIQ takes in a few key inputs and returns a structured recommendation.
+Instead of acting like a marketplace or search tool, LakeLifeIQ takes in a few key inputs and returns a structured recommendation.
 
 That recommendation may include:
 - Boat options
@@ -26,7 +26,7 @@ The goal is clarity, not just options.
 
 ## How It Works
 
-WakeIQ adapts based on where the user is starting from.
+LakeLifeIQ adapts based on where the user is starting from.
 
 Some users are starting from scratch and need full guidance.
 

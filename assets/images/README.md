@@ -1,1 +1,1 @@
-Images for WakeIQ case study
+Images for LakeLifeIQ case study

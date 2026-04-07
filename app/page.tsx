@@ -5,7 +5,7 @@ export default function Home() {
   <div className="absolute top-10 left-10 z-20">
   <img
     src="/logo-white.png"
-    alt="WakeIQ"
+    alt="LakeLifeIQ"
     className="h-20 md:h-24 w-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
   />
 </div>
@@ -109,7 +109,7 @@ export default function Home() {
   See it in action
 </p>
       <h2 className="text-3xl md:text-5xl font-bold text-blue-900 max-w-4xl mx-auto leading-[1.1] tracking-tight">
-  WakeIQ doesn’t just recommend a boat
+  LakeLifeIQ doesn’t just recommend a boat
   <span className="block mt-2">it recommends your entire setup.</span>
 </h2>
       <p className="text-cyan-700 font-semibold">
