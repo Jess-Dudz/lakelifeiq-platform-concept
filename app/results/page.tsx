@@ -2,8 +2,175 @@
 
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { upgrades } from '../data/upgrades';
-import { boats } from '../data/boats';
+import { upgrades, type UpgradeItem } from '../data/upgrades';
+import { boats, type Boat } from '../data/boats';
+
+function normalizeValue(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function matchesOneOf(selectedValues: string[], candidateValues?: string[]) {
+  if (!candidateValues || candidateValues.length === 0) return true;
+
+  const normalizedSelected = selectedValues.map(normalizeValue);
+  return candidateValues.some((value) =>
+    normalizedSelected.includes(normalizeValue(value))
+  );
+}
+
+function matchesSingleValue(selectedValue: string, candidateValues?: string[]) {
+  if (!candidateValues || candidateValues.length === 0) return true;
+
+  return candidateValues
+    .map(normalizeValue)
+    .includes(normalizeValue(selectedValue));
+}
+
+function buildUpgradeReasons(
+  item: UpgradeItem,
+  selectedUsage: string,
+  selectedDockType: string,
+  selectedPriorities: string[],
+  selectedBudget: string,
+  selectedGoal: string,
+  budgetLabel: string
+) {
+  const reasons: string[] = [];
+
+  if (item.match.priorities?.length) {
+    const matchedPriorities = item.match.priorities.filter((priority) =>
+      selectedPriorities
+        .map(normalizeValue)
+        .includes(normalizeValue(priority))
+    );
+
+    if (matchedPriorities.length > 0) {
+      reasons.push(`Matches your priority: ${matchedPriorities.join(', ')}`);
+    }
+  }
+
+  if (
+    item.match.usage &&
+    item.match.usage.map(normalizeValue).includes(normalizeValue(selectedUsage))
+  ) {
+    reasons.push(`Fits your primary usage: ${selectedUsage}`);
+  }
+
+  if (
+    selectedDockType &&
+    item.match.dockType &&
+    item.match.dockType
+      .map(normalizeValue)
+      .includes(normalizeValue(selectedDockType))
+  ) {
+    reasons.push(`Works with your dock setup: ${selectedDockType}`);
+  }
+
+  if (
+    item.match.budget &&
+    item.match.budget
+      .map(normalizeValue)
+      .includes(normalizeValue(selectedBudget))
+  ) {
+    reasons.push(`Aligned with your budget range: ${budgetLabel}`);
+  }
+
+  if (
+    item.match.goal &&
+    item.match.goal.map(normalizeValue).includes(normalizeValue(selectedGoal))
+  ) {
+    reasons.push(`Supports your goal: ${selectedGoal}`);
+  }
+
+  return reasons.slice(0, 3);
+}
+
+function buildBoatReasons(
+  boat: Boat,
+  selectedUsage: string,
+  selectedDockType: string,
+  selectedPriorities: string[],
+  budgetLabel: string
+) {
+  const reasons: string[] = [];
+
+  if (boat.usage.includes(selectedUsage as never)) {
+    reasons.push(`Fits your primary usage: ${selectedUsage}`);
+  }
+
+  if (
+    selectedDockType &&
+    boat.dockCompatibility?.some(
+      (dock) => normalizeValue(dock) === normalizeValue(selectedDockType)
+    )
+  ) {
+    reasons.push(`Compatible with your dock setup: ${selectedDockType}`);
+  }
+
+  if (
+    selectedPriorities.some(
+      (priority) => normalizeValue(priority) === 'convenience'
+    ) &&
+    boat.easyDockAccess
+  ) {
+    reasons.push('Supports a convenience-focused ownership experience');
+  }
+
+  if (
+    selectedPriorities.some(
+      (priority) => normalizeValue(priority) === 'low maintenance'
+    ) &&
+    boat.lowMaintenance
+  ) {
+    reasons.push('Matches your low-maintenance preference');
+  }
+
+  if (
+    selectedPriorities.some(
+      (priority) => normalizeValue(priority) === 'performance'
+    ) &&
+    boat.performance
+  ) {
+    reasons.push('Strong fit for performance-oriented buyers');
+  }
+
+  if (
+    selectedPriorities.some(
+      (priority) => normalizeValue(priority) === 'comfort'
+    ) &&
+    boat.comfort
+  ) {
+    reasons.push('Delivers stronger comfort for longer lake days');
+  }
+
+  if (
+    selectedPriorities.some(
+      (priority) => normalizeValue(priority) === 'family-friendly'
+    ) &&
+    boat.familyFriendly
+  ) {
+    reasons.push('Well suited for family-focused lake use');
+  }
+
+  if (boat.bestFor?.length) {
+    const matchedBestFor = boat.bestFor.filter((tag) =>
+      selectedPriorities
+        .concat([selectedUsage])
+        .map(normalizeValue)
+        .includes(normalizeValue(tag))
+    );
+
+    if (matchedBestFor.length > 0) {
+      reasons.push(`Especially strong for: ${matchedBestFor.join(', ')}`);
+    }
+  }
+
+  reasons.push(`Sits in the recommended budget band: ${budgetLabel}`);
+
+  return reasons.slice(0, 4);
+}
+
+const categoryOrder = ['Cover', 'Dock', 'Comfort', 'Performance'];
 
 export default function ResultsPage() {
   const searchParams = useSearchParams();
@@ -22,6 +189,7 @@ export default function ResultsPage() {
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
   const [leadSuccess, setLeadSuccess] = useState(false);
+  const [leadError, setLeadError] = useState('');
 
   const [leadForm, setLeadForm] = useState({
     name: '',
@@ -29,41 +197,6 @@ export default function ResultsPage() {
     phone: '',
     notes: '',
   });
-
-  const recommendations = useMemo(() => {
-    return boats
-      .map((boat) => {
-        let score = 0;
-
-        if (boat.usage.includes(selectedUsage as never)) score += 2;
-        if (boat.budget === selectedBudget) score += 2;
-
-        const dockCompatibility = (boat as { dockCompatibility?: string[] })
-          .dockCompatibility;
-
-        if (
-          selectedDockType &&
-          dockCompatibility &&
-          dockCompatibility.includes(selectedDockType)
-        ) {
-          score += 1;
-        }
-
-        return { ...boat, score };
-      })
-      .filter((boat) => boat.score > 0)
-      .sort((a, b) => b.score - a.score);
-  }, [selectedUsage, selectedBudget, selectedDockType]);
-
-  const recommendedUpgrades = useMemo(() => {
-    return upgrades.filter((item) => {
-      return (
-        (!item.match.usage || item.match.usage.includes(selectedUsage)) &&
-        (!item.match.dockType ||
-          item.match.dockType.includes(selectedDockType))
-      );
-    });
-  }, [selectedUsage, selectedDockType]);
 
   const budgetLabel =
     selectedBudget === '30-60'
@@ -74,48 +207,233 @@ export default function ResultsPage() {
       ? '$90k–$150k'
       : '$150k+';
 
+  const recommendations = useMemo(() => {
+    return boats
+      .map((boat) => {
+        let score = 0;
+
+        if (boat.usage.includes(selectedUsage as never)) score += 3;
+        if (boat.budget === selectedBudget) score += 3;
+
+        if (
+          selectedDockType &&
+          boat.dockCompatibility?.some(
+            (dock) => normalizeValue(dock) === normalizeValue(selectedDockType)
+          )
+        ) {
+          score += 2;
+        }
+
+        if (
+          selectedPriorities.some(
+            (priority) => normalizeValue(priority) === 'convenience'
+          ) &&
+          boat.easyDockAccess
+        ) {
+          score += 2;
+        }
+
+        if (
+          selectedPriorities.some(
+            (priority) => normalizeValue(priority) === 'low maintenance'
+          ) &&
+          boat.lowMaintenance
+        ) {
+          score += 2;
+        }
+
+        if (
+          selectedPriorities.some(
+            (priority) => normalizeValue(priority) === 'performance'
+          ) &&
+          boat.performance
+        ) {
+          score += 2;
+        }
+
+        if (
+          selectedPriorities.some(
+            (priority) => normalizeValue(priority) === 'comfort'
+          ) &&
+          boat.comfort
+        ) {
+          score += 2;
+        }
+
+        if (
+          selectedPriorities.some(
+            (priority) => normalizeValue(priority) === 'family-friendly'
+          ) &&
+          boat.familyFriendly
+        ) {
+          score += 2;
+        }
+
+        if (selectedGoal === 'Buy new' && boat.upgradePotential) {
+          score += 1;
+        }
+
+        if (boat.luxuryTier === 'premium' && selectedBudget === '150+') {
+          score += 1;
+        }
+
+        return {
+          ...boat,
+          score,
+          reasons: buildBoatReasons(
+            boat,
+            selectedUsage,
+            selectedDockType,
+            selectedPriorities,
+            budgetLabel
+          ),
+        };
+      })
+      .filter((boat) => boat.score > 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.model.localeCompare(b.model);
+      });
+  }, [
+    selectedUsage,
+    selectedBudget,
+    selectedDockType,
+    selectedPriorities,
+    selectedGoal,
+    budgetLabel,
+  ]);
+
+  const recommendedUpgrades = useMemo(() => {
+    return upgrades
+      .map((item: UpgradeItem) => {
+        const matchesUsage = matchesSingleValue(selectedUsage, item.match.usage);
+        const matchesDockType = matchesSingleValue(
+          selectedDockType,
+          item.match.dockType
+        );
+        const matchesPriorities = matchesOneOf(
+          selectedPriorities,
+          item.match.priorities
+        );
+        const matchesBudget = matchesSingleValue(
+          selectedBudget,
+          item.match.budget
+        );
+        const matchesGoal = matchesSingleValue(selectedGoal, item.match.goal);
+
+        const isMatch =
+          matchesUsage &&
+          matchesDockType &&
+          matchesPriorities &&
+          matchesBudget &&
+          matchesGoal;
+
+        let score = 0;
+        if (matchesPriorities) score += 3;
+        if (matchesUsage) score += 2;
+        if (matchesDockType) score += 2;
+        if (matchesBudget) score += 2;
+        if (matchesGoal) score += 1;
+
+        return {
+          ...item,
+          score,
+          isMatch,
+          reasons: buildUpgradeReasons(
+            item,
+            selectedUsage,
+            selectedDockType,
+            selectedPriorities,
+            selectedBudget,
+            selectedGoal,
+            budgetLabel
+          ),
+        };
+      })
+      .filter((item) => item.isMatch)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.title.localeCompare(b.title);
+      });
+  }, [
+    selectedUsage,
+    selectedDockType,
+    selectedPriorities,
+    selectedBudget,
+    selectedGoal,
+    budgetLabel,
+  ]);
+
+  const groupedUpgrades = useMemo(() => {
+    const grouped = recommendedUpgrades.reduce<
+      Record<
+        string,
+        (UpgradeItem & {
+          score: number;
+          isMatch: boolean;
+          reasons: string[];
+        })[]
+      >
+    >((acc, item) => {
+      if (!acc[item.category]) {
+        acc[item.category] = [];
+      }
+      acc[item.category].push(item);
+      return acc;
+    }, {});
+
+    return Object.entries(grouped).sort(([a], [b]) => {
+      const aIndex = categoryOrder.indexOf(a);
+      const bIndex = categoryOrder.indexOf(b);
+
+      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
+  }, [recommendedUpgrades]);
+
   const topRecommendation = recommendations[0];
   const alternateRecommendations = recommendations.slice(1, 3);
 
   const handleLeadSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmittingLead(true);
+    setLeadError('');
 
     try {
       const response = await fetch('/api/lead', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: leadForm.name,
-            email: leadForm.email,
-            phone: leadForm.phone,
-            notes: leadForm.notes,
-            lake: selectedLake,
-            usage: selectedUsage,
-            budget: budgetLabel,
-            dockType: selectedDockType,
-            goal: selectedGoal,
-            priorities: selectedPriorities.join(', '),
-            recommendedBoat: topRecommendation
-              ? `${topRecommendation.brand} ${topRecommendation.model}`
-              : 'No exact recommendation',
-            recommendedBudget: topRecommendation
-              ? topRecommendation.budget === '30-60'
-                ? '$30k–$60k'
-                : topRecommendation.budget === '60-90'
-                ? '$60k–$90k'
-                : topRecommendation.budget === '90-150'
-                ? '$90k–$150k'
-                : '$150k+'
-              : budgetLabel,
-          }),
-        }
-      );
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: leadForm.name,
+          email: leadForm.email,
+          phone: leadForm.phone,
+          notes: leadForm.notes,
+          lake: selectedLake,
+          usage: selectedUsage,
+          budget: budgetLabel,
+          dockType: selectedDockType,
+          goal: selectedGoal,
+          priorities: selectedPriorities.join(', '),
+          recommendedBoat: topRecommendation
+            ? `${topRecommendation.brand} ${topRecommendation.model}`
+            : 'No exact recommendation',
+          recommendedBudget: topRecommendation
+            ? topRecommendation.budget === '30-60'
+              ? '$30k–$60k'
+              : topRecommendation.budget === '60-90'
+              ? '$60k–$90k'
+              : topRecommendation.budget === '90-150'
+              ? '$90k–$150k'
+              : '$150k+'
+            : budgetLabel,
+        }),
+      });
 
       const rawText = await response.text();
-      console.log('Lead submit raw response:', rawText);
 
       let result: { success?: boolean; error?: string } = {};
 
@@ -123,11 +441,9 @@ export default function ResultsPage() {
         result = JSON.parse(rawText);
       } catch (parseError) {
         console.error('Failed to parse Apps Script response:', parseError);
-        alert(`Could not read server response: ${rawText || 'Empty response'}`);
+        setLeadError('Could not read the server response. Please try again.');
         return;
       }
-
-      console.log('Lead submit result:', result);
 
       if (result.success) {
         setLeadSuccess(true);
@@ -138,16 +454,13 @@ export default function ResultsPage() {
           notes: '',
         });
       } else {
-        console.error('Apps Script returned error:', result);
-        alert(
-          `Something went wrong saving your results: ${
-            result.error || 'Unknown error'
-          }`
+        setLeadError(
+          result.error || 'Something went wrong saving your results.'
         );
       }
     } catch (error) {
       console.error('Lead submit error:', error);
-      alert(`Something went wrong sending your results: ${String(error)}`);
+      setLeadError('Something went wrong sending your results.');
     } finally {
       setIsSubmittingLead(false);
     }
@@ -252,12 +565,16 @@ export default function ResultsPage() {
                           <h2 className="text-3xl font-bold text-[#132a72] md:text-4xl">
                             {topRecommendation.brand} {topRecommendation.model}
                           </h2>
+                          <p className="mt-2 text-sm text-gray-500">
+                            {topRecommendation.family} • {topRecommendation.modelYears} •{' '}
+                            {topRecommendation.luxuryTier} tier
+                          </p>
                         </div>
 
                         <div className="shrink-0 rounded-full bg-[#eef7fb] px-4 py-2 text-sm font-semibold text-[#132a72]">
-                          {topRecommendation.score >= 4
+                          {topRecommendation.score >= 8
                             ? 'Top Match'
-                            : topRecommendation.score >= 2
+                            : topRecommendation.score >= 5
                             ? 'Strong Fit'
                             : 'Consider'}
                         </div>
@@ -294,34 +611,12 @@ export default function ResultsPage() {
                           Why this fits you
                         </h3>
                         <ul className="space-y-3 text-gray-700">
-                          {topRecommendation.notes.map((note, i) => (
+                          {topRecommendation.reasons.map((reason, i) => (
                             <li key={i} className="flex items-start gap-3">
                               <span className="mt-0.5 text-cyan-600">✔</span>
-                              <span>{note}</span>
+                              <span>{reason}</span>
                             </li>
                           ))}
-                          <li className="flex items-start gap-3">
-                            <span className="mt-0.5 text-cyan-600">✔</span>
-                            <span>
-                              Strong fit for {selectedUsage.toLowerCase()} use
-                              cases
-                            </span>
-                          </li>
-                          <li className="flex items-start gap-3">
-                            <span className="mt-0.5 text-cyan-600">✔</span>
-                            <span>
-                              Falls within your selected budget range
-                            </span>
-                          </li>
-                          {selectedDockType && (
-                            <li className="flex items-start gap-3">
-                              <span className="mt-0.5 text-cyan-600">✔</span>
-                              <span>
-                                Considered alongside your dock setup:{' '}
-                                {selectedDockType}
-                              </span>
-                            </li>
-                          )}
                         </ul>
                       </div>
 
@@ -353,25 +648,17 @@ export default function ResultsPage() {
                       {openBoatId === topRecommendation.id && (
                         <div className="mt-6 rounded-[20px] border border-[#d7e3ee] bg-[#f8fbfd] p-5">
                           <h3 className="mb-3 text-lg font-bold text-[#132a72]">
-                            Why this match works
+                            Additional detail
                           </h3>
                           <ul className="space-y-2 text-sm text-gray-700">
-                            <li>
-                              • Aligned with your selected usage and intended
-                              lake activity
-                            </li>
-                            <li>
-                              • Budget fit is strong enough to make this a
-                              practical next step
-                            </li>
-                            <li>
-                              • Leaves room to build a more complete lake-day
-                              setup over time
-                            </li>
-                            <li>
-                              • Gives you a strong starting point instead of
-                              shopping blindly
-                            </li>
+                            {topRecommendation.notes.map((note, i) => (
+                              <li key={i}>• {note}</li>
+                            ))}
+                            {topRecommendation.bestFor?.length ? (
+                              <li>
+                                • Best for: {topRecommendation.bestFor.join(', ')}
+                              </li>
+                            ) : null}
                           </ul>
                         </div>
                       )}
@@ -400,24 +687,27 @@ export default function ResultsPage() {
                                   <h4 className="text-2xl font-bold text-[#132a72]">
                                     {boat.brand} {boat.model}
                                   </h4>
+                                  <p className="mt-2 text-sm text-gray-500">
+                                    {boat.family} • {boat.modelYears}
+                                  </p>
                                 </div>
 
                                 <div className="rounded-full bg-[#eef7fb] px-3 py-1 text-sm font-semibold text-[#132a72]">
-                                  {boat.score >= 4
+                                  {boat.score >= 8
                                     ? 'Top Match'
-                                    : boat.score >= 2
+                                    : boat.score >= 5
                                     ? 'Strong Fit'
                                     : 'Consider'}
                                 </div>
                               </div>
 
                               <ul className="space-y-2 text-sm text-gray-700">
-                                {boat.notes.slice(0, 3).map((note, i) => (
+                                {boat.reasons.slice(0, 3).map((reason, i) => (
                                   <li key={i} className="flex items-start gap-2">
                                     <span className="mt-0.5 text-cyan-600">
                                       ✔
                                     </span>
-                                    <span>{note}</span>
+                                    <span>{reason}</span>
                                   </li>
                                 ))}
                               </ul>
@@ -439,9 +729,7 @@ export default function ResultsPage() {
 
                         <button
                           type="button"
-                          onClick={() =>
-                            setShowUpgradeDetails((prev) => !prev)
-                          }
+                          onClick={() => setShowUpgradeDetails((prev) => !prev)}
                           className="rounded-full bg-[#eef7fb] px-4 py-2 text-sm font-semibold text-[#132a72] transition-all duration-200 hover:bg-cyan-100"
                         >
                           {showUpgradeDetails
@@ -451,23 +739,70 @@ export default function ResultsPage() {
                       </div>
 
                       {recommendedUpgrades.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          {recommendedUpgrades.map((item) => (
-                            <div
-                              key={item.id}
-                              className="rounded-[20px] border border-[#d7e3ee] bg-[#f8fbfd] p-5"
-                            >
-                              <p className="mb-2 text-sm font-semibold text-cyan-600">
-                                {item.category}
-                              </p>
+                        <div className="space-y-6">
+                          {groupedUpgrades.map(([category, items]) => (
+                            <div key={category}>
+                              <div className="mb-3 flex items-center gap-3">
+                                <h4 className="text-xl font-bold text-[#132a72]">
+                                  {category} Options
+                                </h4>
+                                {items.length > 1 && (
+                                  <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">
+                                    Best fit first
+                                  </span>
+                                )}
+                              </div>
 
-                              <h4 className="mb-2 text-xl font-bold text-[#132a72]">
-                                {item.title}
-                              </h4>
+                              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {items.map((item, index) => (
+                                  <div
+                                    key={item.id}
+                                    className="rounded-[20px] border border-[#d7e3ee] bg-[#f8fbfd] p-5"
+                                  >
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                      <p className="text-sm font-semibold text-cyan-600">
+                                        {item.category}
+                                      </p>
+                                      <span
+                                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                          index === 0
+                                            ? 'bg-cyan-100 text-cyan-700'
+                                            : 'bg-gray-100 text-gray-600'
+                                        }`}
+                                      >
+                                        {index === 0 ? 'Best Fit' : 'Also Consider'}
+                                      </span>
+                                    </div>
 
-                              <p className="text-gray-600">
-                                {item.description}
-                              </p>
+                                    <h4 className="mb-2 text-xl font-bold text-[#132a72]">
+                                      {item.title}
+                                    </h4>
+
+                                    <p className="mb-4 text-gray-600">
+                                      {item.description}
+                                    </p>
+
+                                    {item.reasons.length > 0 && (
+                                      <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4">
+                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                                          Why this was recommended
+                                        </p>
+                                        <ul className="space-y-1 text-sm text-cyan-900">
+                                          {item.reasons.map((reason) => (
+                                            <li
+                                              key={reason}
+                                              className="flex items-start gap-2"
+                                            >
+                                              <span className="mt-0.5">•</span>
+                                              <span>{reason}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -492,7 +827,7 @@ export default function ResultsPage() {
                               lake
                             </li>
                             <li>
-                              • Supports your selected activity and dock type
+                              • Reflects your budget, priorities, and dock setup
                             </li>
                             <li>
                               • Creates a more complete setup instead of just a
@@ -524,6 +859,7 @@ export default function ResultsPage() {
                         onClick={() => {
                           setShowLeadForm(true);
                           setLeadSuccess(false);
+                          setLeadError('');
                         }}
                         className="rounded-full bg-cyan-500 px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-cyan-600 hover:shadow-lg active:scale-[0.98]"
                       >
@@ -560,7 +896,8 @@ export default function ResultsPage() {
                   Email this setup to yourself
                 </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  We’ll send your recommendation and save your lead for follow-up.
+                  We’ll send your recommendation and save your lead for
+                  follow-up.
                 </p>
               </div>
 
@@ -579,6 +916,12 @@ export default function ResultsPage() {
               </div>
             ) : (
               <form className="space-y-4" onSubmit={handleLeadSubmit}>
+                {leadError && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    {leadError}
+                  </div>
+                )}
+
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-gray-800">
                     Name
