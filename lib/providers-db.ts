@@ -72,14 +72,47 @@ function buildNote(r: DirectoryRow) {
   return bits.join(' \u00b7 ') || 'Local provider.';
 }
 
-async function fetchDirectory(): Promise<DirectoryRow[] | null> {
-  const url = process.env.SUPABASE_URL?.replace(/\/+$/, '');
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Accept the common naming variants. Supabase's own docs use the
+// NEXT_PUBLIC_ prefix, so it is very easy to end up with a mix.
+function resolveEnv(candidates: string[]) {
+  for (const name of candidates) {
+    const v = process.env[name];
+    if (v && v.trim()) return { name, value: v.trim() };
+  }
+  return null;
+}
 
-  if (!url || !key) {
-    console.warn('Supabase not configured; serving hardcoded directory.');
+async function fetchDirectory(): Promise<DirectoryRow[] | null> {
+  const urlVar = resolveEnv([
+    'SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'SUPABASE_PROJECT_URL',
+  ]);
+  const keyVar = resolveEnv([
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'SUPABASE_SERVICE_KEY',
+    'SUPABASE_SECRET_KEY',
+    'SUPABASE_KEY',
+  ]);
+
+  if (!urlVar || !keyVar) {
+    // Log the NAMES of every Supabase-ish variable that exists, never the
+    // values. This turns "not configured" into an actionable message.
+    const present = Object.keys(process.env)
+      .filter((k) => k.toUpperCase().includes('SUPABASE'))
+      .sort();
+    console.warn(
+      'Supabase not configured. url=' + (urlVar?.name ?? 'MISSING') +
+      ' key=' + (keyVar?.name ?? 'MISSING') +
+      ' | SUPABASE-ish vars present: ' +
+      (present.length ? present.join(', ') : 'NONE')
+    );
     return null;
   }
+
+  const url = urlVar.value.replace(/\/+$/, '');
+  const key = keyVar.value;
+  console.info('Directory using ' + urlVar.name + ' + ' + keyVar.name);
 
   try {
     const res = await fetch(`${url}/rest/v1/v_provider_directory?select=*`, {
