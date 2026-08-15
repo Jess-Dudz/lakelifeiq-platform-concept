@@ -28,11 +28,22 @@ function getBudgetLabel(budgetBand: string) {
     : '$150k+';
 }
 
-function formatBudgetBands(bands: string[]) {
-  if (bands.length === 0) return 'No upgrade budget allowance';
-  if (bands.length === 1) return getBudgetLabel(bands[0]);
+// The top of the remaining range, in plain dollars. '150+' can never appear
+// here because the allowance is always at least one tier below the total.
+const BAND_CEILING: Record<string, string> = {
+  '30-60': '$60k',
+  '60-90': '$90k',
+  '90-150': '$150k',
+};
 
-  return bands.map(getBudgetLabel).join(', ');
+function formatBudgetBands(bands: string[]) {
+  if (bands.length === 0) return 'none after the boat';
+
+  // These are tiers, not separate pots of money. Listing them all read as
+  // "$30k-$60k, $60k-$90k, $90k-$150k", which looks like a sum. Naming the
+  // ceiling of the top tier says the same thing without overstating it.
+  const top = bands[bands.length - 1];
+  return `up to ${BAND_CEILING[top] ?? getBudgetLabel(top)}`;
 }
 
 function getRemainingUpgradeBudgetBands(
@@ -47,30 +58,23 @@ function getRemainingUpgradeBudgetBands(
   const totalIndex = budgetBands.indexOf(selectedTotalBudget);
   const boatIndex = budgetBands.indexOf(recommendedBoatBudget);
 
-  if (boatIndex > totalIndex) {
-    return [];
-  }
+  // A boat above the stated budget leaves nothing.
+  if (boatIndex > totalIndex) return [];
 
-  if (selectedTotalBudget === '30-60') {
-    return [];
-  }
+  // An entry-tier total budget is consumed by the boat.
+  if (totalIndex === 0) return [];
 
-  if (selectedTotalBudget === '60-90') {
-    return ['30-60'];
-  }
+  // Each tier the boat consumes steps the upgrade allowance down one band,
+  // with a floor of one band because the bands are wide: a $150k+ budget
+  // against a $150k+ boat still has room for a cover.
+  //
+  // This replaces a hardcoded chain whose last two branches were identical,
+  // so a $150k+ budget reported an allowance of up to $150k no matter what
+  // the boat cost. Bands are still returned rather than a dollar figure
+  // because matchesRemainingBudget filters upgrades on them.
+  const remainingCount = Math.max(1, totalIndex - boatIndex);
 
-  if (selectedTotalBudget === '90-150') {
-    return recommendedBoatBudget === '30-60' ? ['30-60', '60-90'] : ['30-60'];
-  }
-
-  if (
-    recommendedBoatBudget === '30-60' ||
-    recommendedBoatBudget === '60-90'
-  ) {
-    return ['30-60', '60-90', '90-150'];
-  }
-
-  return ['30-60', '60-90', '90-150'];
+  return budgetBands.slice(0, remainingCount) as string[];
 }
 
 function normalizeDockType(value: string) {
@@ -270,7 +274,7 @@ function buildUpgradeReasons(
     )
   ) {
     reasons.push(
-      `Fits after ${recommendedBoatName ?? 'your recommended boat'} within the remaining setup budget: ${remainingUpgradeBudgetLabel}`
+      `Fits after ${recommendedBoatName ?? 'your recommended boat'}, which leaves an upgrade allowance of ${remainingUpgradeBudgetLabel}`
     );
   }
 
@@ -860,6 +864,7 @@ export default function ResultsPage({ boats }: { boats: BoatWithFit[] }) {
           recommendedBoat: topRecommendation
             ? `${topRecommendation.brand} ${topRecommendation.model}`
             : 'No exact recommendation',
+          remainingUpgradeBudget: remainingUpgradeBudgetLabel,
           recommendedBudget: topRecommendation
             ? topRecommendation.budget === '30-60'
               ? '$30k–$60k'
