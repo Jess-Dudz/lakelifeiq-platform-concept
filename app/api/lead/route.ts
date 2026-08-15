@@ -23,6 +23,8 @@
 //
 // Response contract is unchanged: { success: boolean, error?: string }.
 
+import { upgrades } from '@/app/data/upgrades';
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,20 +32,38 @@ const INBOX = 'contact@lakelifeiq.com';
 
 // Values that come from fixed controls in the results flow and are safe to
 // include in a message sent to a visitor-supplied address.
-const PLAN_FIELDS = [
+const SETUP_FIELDS = [
   ['Lake', 'lake'],
   ['Primary usage', 'usage'],
   ['Budget', 'budget'],
   ['Dock type', 'dockType'],
   ['Goal', 'goal'],
   ['Priorities', 'priorities'],
-  ['Recommended boat', 'recommendedBoat'],
-  // Renamed from "Recommended budget", which was the boat's own price band.
-  // When it matched the visitor's total budget the email printed the same
-  // figure twice under two labels and read like a system error.
-  ['Boat price range', 'recommendedBudget'],
-  ['Remaining upgrade allowance', 'remainingUpgradeBudget'],
 ] as const;
+
+// Lakes the plan flow offers. Used to build the directory link without
+// putting a client-supplied URL into an outgoing email.
+const LAKE_SLUGS = new Set(['Lake of the Ozarks', 'Table Rock Lake']);
+
+// Titles are matched against the catalogue rather than trusted, so the
+// upgrade lines in a visitor's email can only ever be our own copy.
+const UPGRADES_BY_TITLE = new Map(upgrades.map((u) => [u.title, u]));
+
+function upgradeLines(titles: unknown): string[] {
+  if (!Array.isArray(titles)) return [];
+
+  return titles
+    .slice(0, 5)
+    .map((t) => (typeof t === 'string' ? UPGRADES_BY_TITLE.get(t) : undefined))
+    .filter((u): u is NonNullable<typeof u> => Boolean(u))
+    .map((u) => {
+      const provider =
+        u.cover?.localProvider ??
+        u.lift?.localProvider ??
+        u.comfort?.localProvider;
+      return `- ${u.category}: ${u.title}${provider ? ` (${provider})` : ''}`;
+    });
+}
 
 function str(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
@@ -140,10 +160,42 @@ export async function POST(request: Request) {
     return fail('Please enter a valid email address.', 400);
   }
 
-  const planLines = PLAN_FIELDS.map(([label, key]) => {
+  const setupLines = SETUP_FIELDS.map(([label, key]) => {
     const value = str(payload[key]);
     return value ? `${label}: ${value}` : null;
   }).filter(Boolean) as string[];
+
+  const boat = str(payload.recommendedBoat);
+  const boatRange = str(payload.recommendedBudget);
+  const allowance = str(payload.remainingUpgradeBudget);
+  const picks = upgradeLines(payload.upgradeTitles);
+
+  const lake = str(payload.lake);
+  const directoryUrl = LAKE_SLUGS.has(lake)
+    ? 'https://lakelifeiq.com/dealers?lake=' +
+      encodeURIComponent(lake) +
+      (sessionId ? '&session=' + sessionId : '')
+    : 'https://lakelifeiq.com/dealers';
+
+  // Assembled once and reused, so the visitor's copy and the inbox copy can
+  // never drift apart.
+  const planBody = [
+    'YOUR SETUP',
+    ...setupLines,
+    '',
+    'RECOMMENDED BOAT',
+    boat ? `${boat}${boatRange ? ` (${boatRange})` : ''}` : 'No exact match',
+    ...(picks.length > 0
+      ? [
+          '',
+          `SUGGESTED UPGRADES${allowance ? ` (allowance: ${allowance})` : ''}`,
+          ...picks,
+        ]
+      : []),
+    '',
+    'FIND LOCAL PROVIDERS',
+    directoryUrl,
+  ];
 
   const fromAddress =
     process.env.CONTACT_FROM_EMAIL ||
@@ -158,7 +210,7 @@ export async function POST(request: Request) {
       text: [
         'Here is the setup recommendation you asked us to send.',
         '',
-        ...planLines,
+        ...planBody,
         '',
         'Reply to this email if you would like help with any part of it.',
         '',
@@ -186,7 +238,7 @@ export async function POST(request: Request) {
         `Email: ${email}`,
         `Phone: ${str(payload.phone) || 'Not given'}`,
         '',
-        ...planLines,
+        ...planBody,
         '',
         'Notes:',
         str(payload.notes) || 'None',
