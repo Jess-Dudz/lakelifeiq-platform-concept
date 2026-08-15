@@ -52,6 +52,7 @@ export function buildOutboundHref({
 export async function recordOutboundClick(payload: OutboundClickPayload) {
   try {
     const webhookUrl = process.env.DEALER_CLICK_WEBHOOK_URL?.trim();
+    const ingestSecret = process.env.CLICK_INGEST_SECRET?.trim();
 
     // Keep outbound attribution privacy-safe by recording only minimal click metadata.
     if (!webhookUrl) {
@@ -63,6 +64,8 @@ export async function recordOutboundClick(payload: OutboundClickPayload) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        // Only sent when configured, so local dev without the secret still works.
+        ...(ingestSecret ? { 'x-ingest-secret': ingestSecret } : {}),
       },
       body: JSON.stringify(payload),
       cache: 'no-store',
