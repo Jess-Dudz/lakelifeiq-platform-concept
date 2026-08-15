@@ -24,6 +24,8 @@
 // Response contract is unchanged: { success: boolean, error?: string }.
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INBOX = 'contact@lakelifeiq.com';
 
 // Values that come from fixed controls in the results flow and are safe to
@@ -77,7 +79,7 @@ async function sendEmail(payload: Record<string, unknown>) {
   }
 }
 
-async function saveLead(email: string) {
+async function saveLead(email: string, sessionId: string | null) {
   const url = resolveEnv(['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL']);
   const key = resolveEnv([
     'SUPABASE_SERVICE_ROLE_KEY',
@@ -98,9 +100,10 @@ async function saveLead(email: string) {
       'Content-Type': 'application/json',
       Prefer: 'return=minimal',
     },
-    // session_id is intentionally omitted until plan_sessions is wired.
+    // leads.session_id is a nullable FK with ON DELETE SET NULL. A lead from
+    // a visitor whose session insert failed still saves, just unattributed.
     // consent_marketing defaults to false at the database level.
-    body: JSON.stringify({ email }),
+    body: JSON.stringify(sessionId ? { email, session_id: sessionId } : { email }),
     cache: 'no-store',
   });
 
@@ -124,6 +127,10 @@ export async function POST(request: Request) {
 
   const payload = body as Record<string, unknown>;
   const email = str(payload.email);
+
+  // Validated here so a malformed value never reaches the foreign key.
+  const rawSession = str(payload.sessionId);
+  const sessionId = UUID_REGEX.test(rawSession) ? rawSession : null;
 
   if (!email || email.length > 160 || !EMAIL_REGEX.test(email)) {
     return fail('Please enter a valid email address.', 400);
@@ -186,7 +193,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await saveLead(email);
+    await saveLead(email, sessionId);
   } catch (error) {
     console.error('Lead save threw:', error);
   }
