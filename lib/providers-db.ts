@@ -128,11 +128,21 @@ async function fetchDirectory(): Promise<DirectoryRow[] | null> {
   console.info('Directory using ' + urlVar.name + ' + ' + keyVar.name);
 
   try {
-    const res = await fetch(`${url}/rest/v1/v_provider_directory?select=*`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
-      // The directory changes when you edit it, not per request.
-      next: { revalidate: 3600 },
-    });
+    // Sort in Postgres, not JavaScript. Two reasons:
+    //   1. The database already knows the ranking; the client should not
+    //      have to recompute an ordering it can just ask for.
+    //   2. Changing this URL changes the Vercel Data Cache key, which
+    //      forces a fresh fetch. That cache persists across deployments,
+    //      so a redeploy alone will not clear a stale response.
+    const res = await fetch(
+      `${url}/rest/v1/v_provider_directory` +
+        `?select=*&order=confidence_score.desc.nullslast,name.asc`,
+      {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        // The directory changes when you edit it, not per request.
+        next: { revalidate: 3600 },
+      }
+    );
 
     if (!res.ok) {
       console.error('Directory fetch failed:', res.status);
