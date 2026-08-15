@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { upgrades, type UpgradeItem } from '../data/upgrades';
-import { boats, type Boat } from '../data/boats';
+import { type Boat } from '../data/boats';
+import { type BoatWithFit } from '@/lib/boats-db';
 
 const budgetBands = ['30-60', '60-90', '90-150', '150+'] as const;
 type BudgetBand = (typeof budgetBands)[number];
@@ -342,7 +343,7 @@ function buildBoatReasons(
 
 const categoryOrder = ['Cover', 'Dock', 'Comfort', 'Performance'];
 
-export default function ResultsPage() {
+export default function ResultsPage({ boats }: { boats: BoatWithFit[] }) {
   const searchParams = useSearchParams();
 
   const selectedLake = searchParams.get('lake') ?? 'Lake of the Ozarks';
@@ -443,6 +444,12 @@ export default function ResultsPage() {
           score += 1;
         }
 
+        // Fit dominates everything else. A surf boat scores 2 for cruising
+        // and a real cruiser scores 5, a 30-point gap that no combination
+        // of budget and priority bonuses can close. This is what stops a
+        // Wakesetter winning a Cruising query on a budget tiebreak.
+        score += (boat.fitScore ?? 0) * 10;
+
         return {
           ...boat,
           score,
@@ -466,6 +473,7 @@ export default function ResultsPage() {
     selectedPriorities,
     selectedGoal,
     budgetLabel,
+    boats,
   ]);
 
   const topRecommendation = recommendations[0];
