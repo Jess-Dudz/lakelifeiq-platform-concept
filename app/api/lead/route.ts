@@ -38,7 +38,11 @@ const PLAN_FIELDS = [
   ['Goal', 'goal'],
   ['Priorities', 'priorities'],
   ['Recommended boat', 'recommendedBoat'],
-  ['Recommended budget', 'recommendedBudget'],
+  // Renamed from "Recommended budget", which was the boat's own price band.
+  // When it matched the visitor's total budget the email printed the same
+  // figure twice under two labels and read like a system error.
+  ['Boat price range', 'recommendedBudget'],
+  ['Remaining upgrade allowance', 'remainingUpgradeBudget'],
 ] as const;
 
 function str(value: unknown) {
