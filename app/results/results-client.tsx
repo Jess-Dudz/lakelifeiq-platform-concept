@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { upgrades, type UpgradeItem } from '../data/upgrades';
 import { type Boat } from '../data/boats';
@@ -129,10 +129,19 @@ function isCoverUpgrade(item: UpgradeItem) {
   return item.category === 'Cover';
 }
 
-function buildDealersHref(lake: string, category: string) {
+function buildDealersHref(
+  lake: string,
+  category: string,
+  sessionId?: string | null
+) {
   const params = new URLSearchParams();
   params.set('lake', lake);
   params.set('category', category);
+  // Carried so outbound clicks on the dealers page can be attributed back
+  // to the plan that sent the visitor there.
+  if (sessionId) {
+    params.set('session', sessionId);
+  }
   return `/dealers?${params.toString()}`;
 }
 
@@ -379,6 +388,57 @@ export default function ResultsPage({ boats }: { boats: BoatWithFit[] }) {
     phone: '',
     notes: '',
   });
+
+  // One plan_sessions row per results view. Everything downstream (outbound
+  // clicks, leads) hangs off this id. The ref guard stops React's development
+  // double-invoke from creating two rows.
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const sessionRequested = useRef(false);
+
+  useEffect(() => {
+    if (sessionRequested.current) return;
+    sessionRequested.current = true;
+
+    const controller = new AbortController();
+
+    const createSession = async () => {
+      try {
+        const response = await fetch('/api/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            lake: selectedLake,
+            usage: selectedUsage,
+            budget: selectedBudget,
+            dockType: selectedDockType,
+            hasSeatingArea: selectedDockHasSeating,
+            coverNeed: selectedCoverNeed,
+            coverAutomationPreference: selectedCoverAutomationPreference,
+            priorities: selectedPriorities,
+            referrer:
+              typeof document !== 'undefined' ? document.referrer : '',
+          }),
+        });
+
+        const result = (await response.json()) as { sessionId?: string };
+
+        if (result?.sessionId) {
+          setSessionId(result.sessionId);
+        }
+      } catch {
+        // Attribution is a nice-to-have. A visitor must never see an error
+        // because analytics could not be recorded.
+      }
+    };
+
+    createSession();
+
+    return () => controller.abort();
+    // Intentionally runs once per mount. The plan is fixed for the life of
+    // this page, so re-running on prop changes would create duplicate rows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const budgetLabel =
     getBudgetLabel(selectedBudget);
@@ -766,9 +826,12 @@ export default function ResultsPage({ boats }: { boats: BoatWithFit[] }) {
     selectedCoverAutomationPreference,
     selectedDockHasSeating,
   ]);
+  // sessionId arrives asynchronously after mount, so it must be a dependency.
+  // Without it the href is memoised before the session exists and every
+  // dealers link goes out unattributed.
   const dealersHref = useMemo(
-    () => buildDealersHref(selectedLake, dealersCategory),
-    [selectedLake, dealersCategory]
+    () => buildDealersHref(selectedLake, dealersCategory, sessionId),
+    [selectedLake, dealersCategory, sessionId]
   );
 
   const handleLeadSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -783,6 +846,7 @@ export default function ResultsPage({ boats }: { boats: BoatWithFit[] }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          sessionId,
           name: leadForm.name,
           email: leadForm.email,
           phone: leadForm.phone,
