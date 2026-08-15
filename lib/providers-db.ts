@@ -19,6 +19,7 @@ export type DbDealerCard = {
   url: string;
   phone?: string;
   hasWebsite: boolean;
+  score?: number;
 };
 
 export type DbProviderCard = {
@@ -30,6 +31,7 @@ export type DbProviderCard = {
   url?: string;
   phone?: string;
   hasWebsite: boolean;
+  score?: number;
 };
 
 type DirectoryRow = {
@@ -44,6 +46,7 @@ type DirectoryRow = {
   google_rating: number | null;
   google_review_count: number | null;
   category: string;
+  confidence_score: number | null;
   lakes: string[];
   capabilities: string[];
   system_brands: string[] | null;
@@ -166,9 +169,10 @@ export async function getDirectory(): Promise<{
         url: r.website_url ?? mapsUrl(r.name, r.street_address, r.city),
         phone: r.phone ?? undefined,
         hasWebsite: Boolean(r.website_url),
+        score: r.confidence_score ?? 0,
       }))
     )
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.name.localeCompare(b.name));
 
   const toProviderCards = (category: EngineCategory): DbProviderCard[] =>
     rows
@@ -182,8 +186,9 @@ export async function getDirectory(): Promise<{
         url: r.website_url ?? mapsUrl(r.name, r.street_address, r.city),
         phone: r.phone ?? undefined,
         hasWebsite: Boolean(r.website_url),
+        score: r.confidence_score ?? 0,
       }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.name.localeCompare(b.name));
 
   return {
     dealers,
