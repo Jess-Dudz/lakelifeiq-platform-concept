@@ -45,6 +45,47 @@ const SETUP_FIELDS = [
 // putting a client-supplied URL into an outgoing email.
 const LAKE_SLUGS = new Set(['Lake of the Ozarks', 'Table Rock Lake']);
 
+// Palette lifted from the site so the email cannot drift from the product.
+const NAVY = '#102b72';
+const HEADING = '#132a72';
+const CYAN = '#22d3ee';
+const ON_CYAN = '#08214f';
+const BORDER = '#dbe6ef';
+const PAGE_BG = '#eef4f8';
+const BODY_TEXT = '#4b5563';
+
+// Every value that reaches this function is either our own catalogue copy or
+// a fixed dropdown value, but escaping is cheap and removes the question.
+function esc(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function row(label: string, value: string) {
+  return (
+    '<tr>' +
+    `<td style="padding:4px 12px 4px 0;color:${BODY_TEXT};font-size:14px;white-space:nowrap;">${esc(
+      label
+    )}</td>` +
+    `<td style="padding:4px 0;color:${HEADING};font-size:14px;font-weight:bold;">${esc(
+      value
+    )}</td>` +
+    '</tr>'
+  );
+}
+
+function sectionHeading(text: string) {
+  return (
+    `<p style="margin:28px 0 10px;color:#0e7490;font-size:11px;` +
+    `font-weight:bold;letter-spacing:1.6px;text-transform:uppercase;">${esc(
+      text
+    )}</p>`
+  );
+}
+
 // Titles are matched against the catalogue rather than trusted, so the
 // upgrade lines in a visitor's email can only ever be our own copy.
 const UPGRADES_BY_TITLE = new Map(upgrades.map((u) => [u.title, u]));
@@ -177,8 +218,78 @@ export async function POST(request: Request) {
       (sessionId ? '&session=' + sessionId : '')
     : 'https://lakelifeiq.com/dealers';
 
-  // Assembled once and reused, so the visitor's copy and the inbox copy can
-  // never drift apart.
+  // Table-based layout with inline styles. Email clients have no flexbox and
+  // strip <style> blocks, so this is deliberately old-fashioned HTML. The
+  // logo sits on a navy band with white alt text, which means the header
+  // still reads as LakeLifeIQ when a client blocks images by default.
+  const setupRows = SETUP_FIELDS.map(([label, key]) => {
+    const value = str(payload[key]);
+    return value ? row(label, value) : '';
+  }).join('');
+
+  const upgradeHtml =
+    picks.length > 0
+      ? sectionHeading(
+          `Suggested upgrades${allowance ? ` (allowance: ${allowance})` : ''}`
+        ) +
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">' +
+        picks
+          .map(
+            (line) =>
+              '<tr><td style="padding:6px 0;border-bottom:1px solid ' +
+              BORDER +
+              ';color:' +
+              HEADING +
+              ';font-size:14px;">' +
+              esc(line.replace(/^- /, '')) +
+              '</td></tr>'
+          )
+          .join('') +
+        '</table>'
+      : '';
+
+  const html =
+    `<div style="background:${PAGE_BG};padding:24px 12px;font-family:` +
+    `-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">` +
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" ` +
+    `style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;">` +
+    `<tr><td style="background:#ffffff;padding:24px 24px 18px;">` +
+    `<img src="https://lakelifeiq.com/logo-email.png" width="200" height="77" alt="LakeLifeIQ" ` +
+    `style="display:block;border:0;width:200px;height:auto;color:${HEADING};font-size:20px;font-weight:bold;"/>` +
+    `</td></tr>` +
+    // A thin brand rule instead of a heavy navy block. Keeps the colour
+    // present without competing with the logo.
+    `<tr><td style="background:${NAVY};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>` +
+    `<tr><td style="padding:26px 24px 32px;">` +
+    `<h1 style="margin:0 0 6px;color:${HEADING};font-size:22px;">Your setup recommendation</h1>` +
+    `<p style="margin:0;color:${BODY_TEXT};font-size:14px;line-height:1.6;">` +
+    `Here is the plan you asked us to send.</p>` +
+    sectionHeading('Your setup') +
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0">${setupRows}</table>` +
+    sectionHeading('Recommended boat') +
+    `<p style="margin:0;color:${HEADING};font-size:18px;font-weight:bold;">` +
+    `${esc(boat || 'No exact match')}</p>` +
+    (boatRange
+      ? `<p style="margin:4px 0 0;color:${BODY_TEXT};font-size:14px;">${esc(
+          boatRange
+        )}</p>`
+      : '') +
+    upgradeHtml +
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0;">` +
+    `<tr><td style="background:${CYAN};border-radius:999px;">` +
+    `<a href="${directoryUrl}" style="display:inline-block;padding:13px 26px;color:${ON_CYAN};` +
+    `font-size:14px;font-weight:bold;text-decoration:none;">Find local providers</a>` +
+    `</td></tr></table>` +
+    `<p style="margin:24px 0 0;color:${BODY_TEXT};font-size:13px;line-height:1.6;">` +
+    `Reply to this email if you would like help with any part of it.</p>` +
+    `</td></tr>` +
+    `<tr><td style="background:${PAGE_BG};padding:16px 24px;border-top:1px solid ${BORDER};">` +
+    `<a href="https://lakelifeiq.com" style="color:${HEADING};font-size:12px;text-decoration:none;">` +
+    `lakelifeiq.com</a></td></tr>` +
+    `</table></div>`;
+
+  // Plain text is kept as the fallback for clients that refuse HTML, and it
+  // is what the inbox copy uses.
   const planBody = [
     'YOUR SETUP',
     ...setupLines,
@@ -207,6 +318,7 @@ export async function POST(request: Request) {
       to: [email],
       reply_to: INBOX,
       subject: 'Your LakeLifeIQ setup recommendation',
+      html,
       text: [
         'Here is the setup recommendation you asked us to send.',
         '',
