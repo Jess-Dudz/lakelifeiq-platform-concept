@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { upgrades } from '../data/upgrades';
 import { buildOutboundHref } from '@/lib/outbound-clicks';
+import { getDirectory } from '@/lib/providers-db';
 
 type Lake = 'Lake of the Ozarks' | 'Table Rock Lake';
 type CategoryFilter = 'all' | 'boats' | 'covers' | 'lifts' | 'comfort';
@@ -284,18 +285,31 @@ export default async function DealersPage({
     resolvedSearchParams?.category
   );
 
-  const filteredBoatDealers = boatDealers.filter(
+  // Database first. getDirectory() returns null on any failure, in which
+  // case we fall back to the hardcoded arrays below and the page renders
+  // exactly as it did before Supabase existed.
+  const directory = await getDirectory();
+
+  const sourceDealers = (directory?.dealers ?? boatDealers) as DealerCard[];
+  const sourceCovers = (directory?.covers ??
+    buildProviderCards('cover')) as ProviderCard[];
+  const sourceLifts = (directory?.lifts ??
+    buildProviderCards('lift')) as ProviderCard[];
+  const sourceComfort = (directory?.comfort ??
+    buildProviderCards('comfort')) as ProviderCard[];
+
+  const filteredBoatDealers = sourceDealers.filter(
     (dealer) => selectedLake === 'all' || dealer.lake === selectedLake
   );
-  const coverProviders = buildProviderCards('cover').filter(
+  const coverProviders = sourceCovers.filter(
     (provider) =>
       selectedLake === 'all' || provider.lakes.includes(selectedLake)
   );
-  const liftProviders = buildProviderCards('lift').filter(
+  const liftProviders = sourceLifts.filter(
     (provider) =>
       selectedLake === 'all' || provider.lakes.includes(selectedLake)
   );
-  const comfortProviders = buildProviderCards('comfort').filter(
+  const comfortProviders = sourceComfort.filter(
     (provider) =>
       selectedLake === 'all' || provider.lakes.includes(selectedLake)
   );
