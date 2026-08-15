@@ -17,6 +17,8 @@ export type DbDealerCard = {
   specialties: string[];
   note: string;
   url: string;
+  phone?: string;
+  hasWebsite: boolean;
 };
 
 export type DbProviderCard = {
@@ -26,6 +28,8 @@ export type DbProviderCard = {
   serviceTypes: string[];
   note: string;
   url?: string;
+  phone?: string;
+  hasWebsite: boolean;
 };
 
 type DirectoryRow = {
@@ -35,6 +39,7 @@ type DirectoryRow = {
   blurb: string | null;
   website_url: string | null;
   city: string | null;
+  street_address: string | null;
   phone: string | null;
   google_rating: number | null;
   google_review_count: number | null;
@@ -49,8 +54,13 @@ type DirectoryRow = {
  * so a Maps search is the reliable destination: directions, hours, phone,
  * and reviews in one tap. For a dock builder that beats a website.
  */
-function mapsUrl(name: string, city: string | null) {
-  const q = encodeURIComponent([name, city].filter(Boolean).join(' '));
+function mapsUrl(name: string, address: string | null, city: string | null) {
+  // Searching by business name matched the wrong company (a "Sho-Me Mister"
+  // search returned a pest control firm). A full street address is exact.
+  // Only fall back to name + city when there is no address at all.
+  const q = address
+    ? encodeURIComponent(address)
+    : encodeURIComponent([name, city].filter(Boolean).join(' '));
   return `https://www.google.com/maps/search/?api=1&query=${q}`;
 }
 
@@ -153,7 +163,9 @@ export async function getDirectory(): Promise<{
         lake,
         specialties: (r.capabilities ?? []).slice(0, 3),
         note: buildNote(r),
-        url: r.website_url ?? mapsUrl(r.name, r.city),
+        url: r.website_url ?? mapsUrl(r.name, r.street_address, r.city),
+        phone: r.phone ?? undefined,
+        hasWebsite: Boolean(r.website_url),
       }))
     )
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -167,7 +179,9 @@ export async function getDirectory(): Promise<{
         systems: r.system_brands ?? [],
         serviceTypes: r.capabilities ?? [],
         note: buildNote(r),
-        url: r.website_url ?? mapsUrl(r.name, r.city),
+        url: r.website_url ?? mapsUrl(r.name, r.street_address, r.city),
+        phone: r.phone ?? undefined,
+        hasWebsite: Boolean(r.website_url),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
