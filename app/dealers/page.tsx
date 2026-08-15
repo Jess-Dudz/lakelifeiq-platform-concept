@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { upgrades } from '../data/upgrades';
 import { buildOutboundHref } from '@/lib/outbound-clicks';
 import { getDirectory } from '@/lib/providers-db';
+import PhoneReveal from './phone-reveal';
 
 type Lake = 'Lake of the Ozarks' | 'Table Rock Lake';
 type CategoryFilter = 'all' | 'boats' | 'covers' | 'lifts' | 'comfort';
@@ -199,6 +200,8 @@ function ServiceCard({
   outboundHref,
   phone,
   hasWebsite,
+  category,
+  sourcePage,
 }: {
   title: string;
   eyebrow: string;
@@ -209,6 +212,8 @@ function ServiceCard({
   outboundHref?: string;
   phone?: string;
   hasWebsite?: boolean;
+  category?: string;
+  sourcePage?: string;
 }) {
   return (
     <div className="flex h-full flex-col rounded-[24px] border border-[#dbe6ef] bg-white p-6 shadow-[0_16px_40px_rgba(8,34,87,0.08)]">
@@ -217,12 +222,13 @@ function ServiceCard({
       </p>
       <h3 className="text-2xl font-bold text-[#132a72]">{title}</h3>
       {phone && (
-        <a
-          href={`tel:${phone.replace(/[^0-9+]/g, '')}`}
-          className="mt-2 inline-flex items-center text-base font-semibold text-cyan-700 transition hover:text-cyan-600"
-        >
-          {phone}
-        </a>
+        <PhoneReveal
+          phone={phone}
+          name={title}
+          lake={lakes[0] ?? 'Unknown'}
+          category={category ?? 'unknown'}
+          sourcePage={sourcePage ?? '/dealers'}
+        />
       )}
       <p className="mt-3 text-sm leading-relaxed text-gray-600">{note}</p>
 
@@ -564,12 +570,13 @@ export default async function DealersPage({
                             {dealer.name}
                           </h3>
                           {dealer.phone && (
-                            <a
-                              href={`tel:${dealer.phone.replace(/[^0-9+]/g, '')}`}
-                              className="mt-2 inline-flex items-center text-base font-semibold text-cyan-700 transition hover:text-cyan-600"
-                            >
-                              {dealer.phone}
-                            </a>
+                            <PhoneReveal
+                              phone={dealer.phone}
+                              name={dealer.name}
+                              lake={dealer.lake}
+                              category="boats"
+                              sourcePage={sourcePage}
+                            />
                           )}
                           <p className="mt-3 text-sm leading-relaxed text-gray-600">
                             {dealer.note}
@@ -623,12 +630,14 @@ export default async function DealersPage({
                         key={provider.name}
                         title={provider.name}
                         eyebrow="Cover Provider"
+                        category="covers"
                         note={provider.note}
                         lakes={provider.lakes}
                         systems={provider.systems}
                         serviceTypes={provider.serviceTypes}
                         phone={provider.phone}
                         hasWebsite={provider.hasWebsite}
+                        sourcePage={sourcePage}
                         outboundHref={
                           provider.url
                             ? buildOutboundHref({
@@ -671,12 +680,14 @@ export default async function DealersPage({
                         key={provider.name}
                         title={provider.name}
                         eyebrow="Lift Provider"
+                        category="lifts"
                         note={provider.note}
                         lakes={provider.lakes}
                         systems={provider.systems}
                         serviceTypes={provider.serviceTypes}
                         phone={provider.phone}
                         hasWebsite={provider.hasWebsite}
+                        sourcePage={sourcePage}
                         outboundHref={
                           provider.url
                             ? buildOutboundHref({
@@ -719,12 +730,14 @@ export default async function DealersPage({
                         key={provider.name}
                         title={provider.name}
                         eyebrow="Comfort Provider"
+                        category="comfort"
                         note={provider.note}
                         lakes={provider.lakes}
                         systems={provider.systems}
                         serviceTypes={provider.serviceTypes}
                         phone={provider.phone}
                         hasWebsite={provider.hasWebsite}
+                        sourcePage={sourcePage}
                         outboundHref={
                           provider.url
                             ? buildOutboundHref({
