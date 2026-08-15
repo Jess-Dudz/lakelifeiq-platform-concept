@@ -1,5 +1,32 @@
 import Link from 'next/link';
 
+/**
+ * The wordmark has a light-blue swoosh running under "LakeLife". This is that
+ * curve at page scale, used to hand one section off to the next. Two offset
+ * paths rather than one, which is what gives the logo its sense of depth.
+ */
+function WaveDivider({ to }: { to: string }) {
+  return (
+    <div className="relative -mt-px" aria-hidden="true">
+      <svg
+        viewBox="0 0 1440 90"
+        preserveAspectRatio="none"
+        className="block h-12 w-full md:h-16"
+      >
+        <path
+          d="M0,54 C280,6 520,92 760,46 C1000,6 1220,58 1440,24 L1440,90 L0,90 Z"
+          fill="#b5d4f4"
+          opacity="0.45"
+        />
+        <path
+          d="M0,66 C280,20 520,100 760,58 C1000,20 1220,70 1440,38 L1440,90 L0,90 Z"
+          fill={to}
+        />
+      </svg>
+    </div>
+  );
+}
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-white text-gray-900">
@@ -37,6 +64,30 @@ export default function Home() {
           </div>
         </div>
       </section>
+      {/* Real coverage, stated immediately after the hero so the directory
+          reads as something that exists rather than something promised.
+          Deliberately phrased as floors, not exact counts, so these stay true
+          as the database grows instead of going stale the way the hardcoded
+          show dates did. */}
+      <section className="bg-[#102b72] px-6 py-10">
+        <div className="mx-auto grid max-w-4xl grid-cols-3 gap-4 text-center">
+          {[
+            ['100+', 'Local providers'],
+            ['35+', 'Boats compared'],
+            ['4', 'Setup categories'],
+          ].map(([figure, label]) => (
+            <div key={label}>
+              <p className="text-3xl font-bold text-cyan-300 md:text-4xl">
+                {figure}
+              </p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/70">
+                {label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Card treatment, eyebrows and shadows are lifted from the dealers
           page so the two surfaces read as the same product. The previous
           #d9d9d9 was not in the brand palette and ran across two consecutive
@@ -126,7 +177,9 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[#eef4f8] px-6 py-20 md:py-28">
+      <WaveDivider to="#eef4f8" />
+
+      <section className="bg-[#eef4f8] px-6 pb-20 pt-6 md:pb-28 md:pt-10">
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
@@ -277,7 +330,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="mt-14 grid grid-cols-1 gap-8 border-t border-white/10 pt-10 text-sm sm:grid-cols-3">
+          <div className="mt-14 grid grid-cols-1 gap-8 border-t border-white/10 pt-10 text-left text-sm sm:grid-cols-3">
             {[
               [
                 'Tell us your setup',
@@ -285,9 +338,12 @@ export default function Home() {
               ],
               ['Get matched', 'See boats, dealers, and setup recommendations'],
               ['Plan with confidence', 'Understand everything before you buy'],
-            ].map(([title, body]) => (
-              <div key={title}>
-                <p className="font-semibold text-cyan-200">{title}</p>
+            ].map(([title, body], index) => (
+              <div key={title} className="relative">
+                <span className="block text-2xl font-bold tabular-nums text-cyan-400/40">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <p className="mt-2 font-semibold text-cyan-200">{title}</p>
                 <p className="mt-1.5 leading-relaxed text-white/70">{body}</p>
               </div>
             ))}
