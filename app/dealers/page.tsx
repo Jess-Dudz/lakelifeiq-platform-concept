@@ -363,6 +363,13 @@ export default async function DealersPage({
       typeLabel: 'Trade show',
     }));
 
+  // The hero card only ever renders the next show in full. Everything else
+  // collapses behind a native <details> toggle so the card stays short and
+  // the first dealer card stays above the fold.
+  const hasShows = shows.length > 0;
+  const nextShow = shows[0];
+  const laterShows = shows.slice(1);
+
   const sourceDealers = (directory?.dealers ?? boatDealers) as DealerCard[];
   const sourceCovers = (directory?.covers ??
     buildProviderCards('cover')) as ProviderCard[];
@@ -419,7 +426,11 @@ export default async function DealersPage({
       <section className="relative overflow-hidden bg-[#102b72] px-6 py-16 text-white md:px-8 md:py-20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(34,211,238,0.22),_transparent_35%),radial-gradient(circle_at_bottom_left,_rgba(255,255,255,0.08),_transparent_28%)]" />
 
-        <div className="relative mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.5fr_0.9fr]">
+        <div
+          className={`relative mx-auto grid max-w-6xl gap-8 ${
+            hasShows ? 'lg:grid-cols-[1.5fr_0.9fr]' : ''
+          }`}
+        >
           <div>
             <p className="mb-4 inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
               Dealer Directory
@@ -433,94 +444,87 @@ export default async function DealersPage({
               dock-comfort specialists.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="#boat-dealers"
-                className="rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-[#08214f] transition hover:bg-cyan-300"
-              >
-                Boat Dealers
-              </a>
-              <a
-                href="#covers"
-                className="rounded-full bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-              >
-                Covers
-              </a>
-              <a
-                href="#lifts"
-                className="rounded-full bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-              >
-                Lifts
-              </a>
-              <a
-                href="#comfort"
-                className="rounded-full bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-              >
-                Cooling / Comfort
-              </a>
-            </div>
           </div>
 
-          <aside className="rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.16)] backdrop-blur-sm">
-            <div className="mb-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                  Upcoming Shows
-                </p>
-                <h2 className="mt-2 text-2xl font-bold">Regional watchlist</h2>
-              </div>
-            </div>
+          {/* No upcoming shows means no card at all. The grid above drops to
+              a single column so the hero copy does not sit next to a gap. */}
+          {hasShows && nextShow && (
+            <aside className="self-start rounded-[28px] border border-white/10 bg-white/10 p-5 shadow-[0_24px_60px_rgba(0,0,0,0.16)] backdrop-blur-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                Upcoming Shows
+              </p>
 
-            <div className="space-y-2.5">
-              {shows.map((show, index) =>
-                index === 0 ? (
-                  // The next show gets full detail. It is the only one close
-                  // enough to act on, so it earns the space.
-                  <a
-                    key={show.name}
-                    href={show.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block rounded-[18px] border border-cyan-300/25 bg-[#15357f]/85 p-4 transition hover:bg-[#19418f]"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-cyan-200">
-                        {show.date}
-                      </p>
-                      <span className="rounded-full bg-cyan-400/20 px-2.5 py-0.5 text-xs font-semibold text-cyan-100">
-                        {show.daysAway === 0
-                          ? 'Today'
-                          : show.daysAway <= 30
-                          ? `${show.daysAway} days`
-                          : show.timing}
-                      </span>
-                    </div>
-                    <h3 className="mt-1 text-lg font-bold">{show.name}</h3>
-                    <p className="mt-1.5 text-sm text-white/75">
-                      {show.typeLabel} &middot; {show.location}
-                    </p>
-                  </a>
-                ) : (
-                  // The rest are months out. A date and a name is enough;
-                  // the venue and blurb are noise at that distance.
-                  <a
-                    key={show.name}
-                    href={show.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-baseline justify-between gap-4 rounded-[14px] px-4 py-2.5 transition hover:bg-white/10"
-                  >
-                    <span className="text-sm font-semibold text-white/90">
-                      {show.name}
+              {/* The next show gets full detail. It is the only one close
+                  enough to act on, so it earns the space. */}
+              <a
+                href={nextShow.url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 block rounded-[18px] border border-cyan-300/25 bg-[#15357f]/85 p-4 transition hover:bg-[#19418f]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-cyan-200">
+                    {nextShow.date}
+                  </p>
+                  <span className="shrink-0 rounded-full bg-cyan-400/20 px-2.5 py-0.5 text-xs font-semibold text-cyan-100">
+                    {nextShow.daysAway === 0
+                      ? 'Today'
+                      : nextShow.daysAway <= 30
+                      ? `${nextShow.daysAway} days`
+                      : nextShow.timing}
+                  </span>
+                </div>
+                <h2 className="mt-1 text-lg font-bold">{nextShow.name}</h2>
+                <p className="mt-1.5 text-sm text-white/75">
+                  {nextShow.typeLabel} &middot; {nextShow.location}
+                </p>
+              </a>
+
+              {/* Native <details> keeps this a server component. The rest of
+                  the season is months out, so it stays closed by default. */}
+              {laterShows.length > 0 && (
+                <details className="group mt-2">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[14px] px-3 py-2 text-xs font-semibold text-cyan-100/90 transition hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                    <span>
+                      {laterShows.length} more{' '}
+                      {laterShows.length === 1 ? 'show' : 'shows'} this season
                     </span>
-                    <span className="shrink-0 text-xs font-semibold text-cyan-200/90">
-                      {show.date}
-                    </span>
-                  </a>
-                )
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </summary>
+
+                  <div className="mt-1 space-y-0.5">
+                    {laterShows.map((show) => (
+                      <a
+                        key={show.name}
+                        href={show.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-baseline justify-between gap-4 rounded-[12px] px-3 py-2 transition hover:bg-white/10"
+                      >
+                        <span className="text-sm font-medium text-white/85">
+                          {show.name}
+                        </span>
+                        <span className="shrink-0 text-xs font-semibold text-cyan-200/80">
+                          {show.date}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </details>
               )}
-            </div>
-          </aside>
+            </aside>
+          )}
         </div>
       </section>
 
