@@ -352,9 +352,16 @@ export default async function DealersPage({
       location: e.venue,
       note: e.note,
       url: e.url,
-      urgency: e.urgencyLabel,
+      timing: e.timingLabel,
       daysAway: e.daysAway,
-    })) ?? upcomingShows.map((s) => ({ ...s, urgency: '', daysAway: 0 }));
+      typeLabel: e.typeLabel,
+    })) ??
+    upcomingShows.map((s) => ({
+      ...s,
+      timing: '',
+      daysAway: 0,
+      typeLabel: 'Trade show',
+    }));
 
   const sourceDealers = (directory?.dealers ?? boatDealers) as DealerCard[];
   const sourceCovers = (directory?.covers ??
@@ -480,15 +487,17 @@ export default async function DealersPage({
                       <p className="text-sm font-semibold text-cyan-200">
                         {show.date}
                       </p>
-                      {show.daysAway > 0 && show.daysAway <= 60 && (
-                        <span className="rounded-full bg-cyan-400/20 px-2.5 py-0.5 text-xs font-semibold text-cyan-100">
-                          {show.daysAway} days
-                        </span>
-                      )}
+                      <span className="rounded-full bg-cyan-400/20 px-2.5 py-0.5 text-xs font-semibold text-cyan-100">
+                        {show.daysAway === 0
+                          ? 'Today'
+                          : show.daysAway <= 30
+                          ? `${show.daysAway} days`
+                          : show.timing}
+                      </span>
                     </div>
                     <h3 className="mt-1 text-lg font-bold">{show.name}</h3>
                     <p className="mt-1.5 text-sm text-white/75">
-                      {show.location}
+                      {show.typeLabel} &middot; {show.location}
                     </p>
                   </a>
                 ) : (
