@@ -43,7 +43,7 @@ export async function GET() {
   // If both are present, actually try the request the dealers page makes.
   if (url && key) {
     try {
-      const res = await fetch(`${url}/rest/v1/v_provider_directory?select=name&limit=3`, {
+      const res = await fetch(`${url}/rest/v1/v_provider_directory?select=*&category=eq.boats&limit=3`, {
         headers: { apikey: key, Authorization: `Bearer ${key}` },
         cache: 'no-store',
       });
@@ -52,10 +52,22 @@ export async function GET() {
       if (res.ok) {
         const rows = await res.json();
         result.step4_rowsReturned = Array.isArray(rows) ? rows.length : 0;
-        result.step4_verdict =
-          Array.isArray(rows) && rows.length > 0
-            ? 'WORKING - the dealers page should be showing 58 providers'
-            : 'View reachable but returned no rows';
+
+        // The actual question: is confidence_score in the API response?
+        const first = Array.isArray(rows) && rows[0] ? rows[0] : null;
+        result.step5_columnsReturned = first ? Object.keys(first).sort() : [];
+        result.step5_hasConfidenceScore = first
+          ? Object.prototype.hasOwnProperty.call(first, 'confidence_score')
+          : false;
+        result.step5_sample = Array.isArray(rows)
+          ? rows.map((r: Record<string, unknown>) => ({
+              name: r.name,
+              confidence_score: r.confidence_score ?? 'ABSENT',
+            }))
+          : [];
+        result.step4_verdict = result.step5_hasConfidenceScore
+          ? 'confidence_score IS returned. Problem is caching on the page.'
+          : 'confidence_score NOT returned by the API.';
       } else {
         result.step4_body = (await res.text()).slice(0, 400);
         result.step4_verdict =
