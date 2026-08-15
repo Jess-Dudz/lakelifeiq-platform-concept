@@ -191,6 +191,35 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
+
+function ViewAllLink({
+  shown,
+  total,
+  category,
+  label,
+  lake,
+}: {
+  shown: number;
+  total: number;
+  category: string;
+  label: string;
+  lake: string;
+}) {
+  if (shown >= total) return null;
+  const params = new URLSearchParams({ category });
+  if (lake !== 'all') params.set('lake', lake);
+  return (
+    <div className="mt-6 flex justify-center">
+      <Link
+        href={`/dealers?${params.toString()}`}
+        className="inline-flex items-center gap-2 rounded-full border border-[#dbe6ef] bg-white px-5 py-3 text-sm font-semibold text-[#132a72] transition hover:border-cyan-300 hover:bg-cyan-50"
+      >
+        View all {total} {label}
+      </Link>
+    </div>
+  );
+}
+
 function ServiceCard({
   title,
   eyebrow,
@@ -350,6 +379,12 @@ export default async function DealersPage({
     (provider) =>
       selectedLake === 'all' || provider.lakes.includes(selectedLake)
   );
+
+  // Preview mode: with no category chosen, show the top few per category
+  // instead of all 58 cards. Selecting a category reveals the full list.
+  const isPreview = selectedCategory === 'all';
+  const PREVIEW_COUNT = 4;
+  const cap = <T,>(list: T[]) => (isPreview ? list.slice(0, PREVIEW_COUNT) : list);
 
   const showBoats = selectedCategory === 'all' || selectedCategory === 'boats';
   const showCovers =
@@ -564,8 +599,9 @@ export default async function DealersPage({
                 </div>
 
                 {filteredBoatDealers.length > 0 ? (
+                  <>
                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                    {filteredBoatDealers.map((dealer) => {
+                    {cap(filteredBoatDealers).map((dealer) => {
                       const outboundHref = buildOutboundHref({
                         destinationType: 'dealer',
                         name: dealer.name,
@@ -627,6 +663,8 @@ export default async function DealersPage({
                       );
                     })}
                   </div>
+                  <ViewAllLink shown={cap(filteredBoatDealers).length} total={filteredBoatDealers.length} category="boats" label="boat dealers" lake={selectedLake} />
+                  </>
                 ) : (
                   <EmptyState label="boat dealers" />
                 )}
@@ -645,8 +683,9 @@ export default async function DealersPage({
                 </div>
 
                 {coverProviders.length > 0 ? (
+                  <>
                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                    {coverProviders.map((provider) => (
+                    {cap(coverProviders).map((provider) => (
                       // Provider outbound clicks stay privacy-safe and only use known website URLs.
                       <ServiceCard
                         key={provider.name}
@@ -678,6 +717,8 @@ export default async function DealersPage({
                       />
                     ))}
                   </div>
+                  <ViewAllLink shown={cap(coverProviders).length} total={coverProviders.length} category="covers" label="cover providers" lake={selectedLake} />
+                  </>
                 ) : (
                   <EmptyState label="cover providers" />
                 )}
@@ -696,8 +737,9 @@ export default async function DealersPage({
                 </div>
 
                 {liftProviders.length > 0 ? (
+                  <>
                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                    {liftProviders.map((provider) => (
+                    {cap(liftProviders).map((provider) => (
                       <ServiceCard
                         key={provider.name}
                         title={provider.name}
@@ -728,6 +770,8 @@ export default async function DealersPage({
                       />
                     ))}
                   </div>
+                  <ViewAllLink shown={cap(liftProviders).length} total={liftProviders.length} category="lifts" label="lift providers" lake={selectedLake} />
+                  </>
                 ) : (
                   <EmptyState label="lift providers" />
                 )}
@@ -746,8 +790,9 @@ export default async function DealersPage({
                 </div>
 
                 {comfortProviders.length > 0 ? (
+                  <>
                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                    {comfortProviders.map((provider) => (
+                    {cap(comfortProviders).map((provider) => (
                       <ServiceCard
                         key={provider.name}
                         title={provider.name}
@@ -778,6 +823,8 @@ export default async function DealersPage({
                       />
                     ))}
                   </div>
+                  <ViewAllLink shown={cap(comfortProviders).length} total={comfortProviders.length} category="comfort" label="comfort providers" lake={selectedLake} />
+                  </>
                 ) : (
                   <EmptyState label="comfort providers" />
                 )}
