@@ -3,6 +3,7 @@ import { upgrades } from '../data/upgrades';
 import { buildOutboundHref } from '@/lib/outbound-clicks';
 import { getDirectory } from '@/lib/providers-db';
 import PhoneReveal from './phone-reveal';
+import { getUpcomingEvents } from '@/lib/events-db';
 
 type Lake = 'Lake of the Ozarks' | 'Table Rock Lake';
 type CategoryFilter = 'all' | 'boats' | 'covers' | 'lifts' | 'comfort';
@@ -312,6 +313,20 @@ export default async function DealersPage({
   // exactly as it did before Supabase existed.
   const directory = await getDirectory();
 
+  // Real dates from the database, filtered to what has not happened yet.
+  // Falls back to the hardcoded array only if the fetch fails.
+  const dbEvents = await getUpcomingEvents();
+  const shows =
+    dbEvents?.map((e) => ({
+      name: e.name,
+      date: e.dateLabel,
+      location: e.venue,
+      note: e.note,
+      url: e.url,
+      urgency: e.urgencyLabel,
+      daysAway: e.daysAway,
+    })) ?? upcomingShows.map((s) => ({ ...s, urgency: '', daysAway: 0 }));
+
   const sourceDealers = (directory?.dealers ?? boatDealers) as DealerCard[];
   const sourceCovers = (directory?.covers ??
     buildProviderCards('cover')) as ProviderCard[];
@@ -415,7 +430,7 @@ export default async function DealersPage({
             </div>
 
             <div className="space-y-4">
-              {upcomingShows.map((show) => (
+              {shows.map((show) => (
                 <a
                   key={show.name}
                   href={show.url}
@@ -423,9 +438,16 @@ export default async function DealersPage({
                   rel="noreferrer"
                   className="block rounded-[22px] border border-white/10 bg-[#15357f]/85 p-4 transition hover:bg-[#19418f]"
                 >
-                  <p className="text-sm font-semibold text-cyan-200">
-                    {show.date}
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-cyan-200">
+                      {show.date}
+                    </p>
+                    {show.daysAway > 0 && show.daysAway <= 60 && (
+                      <span className="rounded-full bg-cyan-400/20 px-2.5 py-0.5 text-xs font-semibold text-cyan-100">
+                        {show.daysAway} days
+                      </span>
+                    )}
+                  </div>
                   <h3 className="mt-1 text-lg font-bold">{show.name}</h3>
                   <p className="mt-2 text-sm text-white/80">{show.location}</p>
                   <p className="mt-2 text-sm leading-relaxed text-white/70">
