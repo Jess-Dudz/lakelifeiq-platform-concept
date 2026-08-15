@@ -43,7 +43,7 @@ export async function getUpcomingEvents(): Promise<UpcomingEvent[] | null> {
 
   try {
     const res = await fetch(
-      `${url}/rest/v1/v_upcoming_events?select=*&order=starts_on.asc&limit=5&is_active=eq.true`,
+      `${url}/rest/v1/v_upcoming_events?select=*&order=starts_on.asc&limit=6`,
       {
         headers: { apikey: key, Authorization: `Bearer ${key}` },
         // Short cache: this is date-sensitive and should roll over promptly.
