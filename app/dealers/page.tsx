@@ -12,6 +12,8 @@ type DealerCard = {
   specialties: string[];
   note: string;
   url: string;
+  phone?: string;
+  hasWebsite?: boolean;
 };
 
 type ProviderCard = {
@@ -21,6 +23,8 @@ type ProviderCard = {
   serviceTypes: string[];
   note: string;
   url?: string;
+  phone?: string;
+  hasWebsite?: boolean;
 };
 
 const boatDealers: DealerCard[] = [
@@ -193,6 +197,8 @@ function ServiceCard({
   systems,
   serviceTypes,
   outboundHref,
+  phone,
+  hasWebsite,
 }: {
   title: string;
   eyebrow: string;
@@ -201,6 +207,8 @@ function ServiceCard({
   systems: string[];
   serviceTypes: string[];
   outboundHref?: string;
+  phone?: string;
+  hasWebsite?: boolean;
 }) {
   return (
     <div className="flex h-full flex-col rounded-[24px] border border-[#dbe6ef] bg-white p-6 shadow-[0_16px_40px_rgba(8,34,87,0.08)]">
@@ -208,6 +216,14 @@ function ServiceCard({
         {eyebrow}
       </p>
       <h3 className="text-2xl font-bold text-[#132a72]">{title}</h3>
+      {phone && (
+        <a
+          href={`tel:${phone.replace(/[^0-9+]/g, '')}`}
+          className="mt-2 inline-flex items-center text-base font-semibold text-cyan-700 transition hover:text-cyan-600"
+        >
+          {phone}
+        </a>
+      )}
       <p className="mt-3 text-sm leading-relaxed text-gray-600">{note}</p>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -547,6 +563,14 @@ export default async function DealersPage({
                           <h3 className="mt-3 text-2xl font-bold text-[#132a72]">
                             {dealer.name}
                           </h3>
+                          {dealer.phone && (
+                            <a
+                              href={`tel:${dealer.phone.replace(/[^0-9+]/g, '')}`}
+                              className="mt-2 inline-flex items-center text-base font-semibold text-cyan-700 transition hover:text-cyan-600"
+                            >
+                              {dealer.phone}
+                            </a>
+                          )}
                           <p className="mt-3 text-sm leading-relaxed text-gray-600">
                             {dealer.note}
                           </p>
@@ -567,7 +591,7 @@ export default async function DealersPage({
                               rel="noopener noreferrer"
                               className="inline-flex rounded-full bg-cyan-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-600"
                             >
-                              Visit Website
+                              {dealer.hasWebsite ? 'Visit Website' : 'View on Map'}
                             </a>
                           </div>
                         </div>
@@ -603,6 +627,8 @@ export default async function DealersPage({
                         lakes={provider.lakes}
                         systems={provider.systems}
                         serviceTypes={provider.serviceTypes}
+                        phone={provider.phone}
+                        hasWebsite={provider.hasWebsite}
                         outboundHref={
                           provider.url
                             ? buildOutboundHref({
@@ -649,6 +675,8 @@ export default async function DealersPage({
                         lakes={provider.lakes}
                         systems={provider.systems}
                         serviceTypes={provider.serviceTypes}
+                        phone={provider.phone}
+                        hasWebsite={provider.hasWebsite}
                         outboundHref={
                           provider.url
                             ? buildOutboundHref({
@@ -695,6 +723,8 @@ export default async function DealersPage({
                         lakes={provider.lakes}
                         systems={provider.systems}
                         serviceTypes={provider.serviceTypes}
+                        phone={provider.phone}
+                        hasWebsite={provider.hasWebsite}
                         outboundHref={
                           provider.url
                             ? buildOutboundHref({
