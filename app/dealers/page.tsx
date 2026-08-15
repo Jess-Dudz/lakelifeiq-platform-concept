@@ -168,7 +168,11 @@ function normalizeCategoryFilter(value?: string | string[]) {
     : 'all';
 }
 
-function buildFilterHref(lake: string, category: CategoryFilter) {
+function buildFilterHref(
+  lake: string,
+  category: CategoryFilter,
+  sessionId?: string
+) {
   const params = new URLSearchParams();
 
   if (lake !== 'all') {
@@ -177,6 +181,12 @@ function buildFilterHref(lake: string, category: CategoryFilter) {
 
   if (category !== 'all') {
     params.set('category', category);
+  }
+
+  // Without this, clicking any filter drops the plan attribution and every
+  // click after that point looks like anonymous directory browsing.
+  if (sessionId) {
+    params.set('session', sessionId);
   }
 
   const query = params.toString();
@@ -198,16 +208,19 @@ function ViewAllLink({
   category,
   label,
   lake,
+  sessionId,
 }: {
   shown: number;
   total: number;
   category: string;
   label: string;
   lake: string;
+  sessionId?: string;
 }) {
   if (shown >= total) return null;
   const params = new URLSearchParams({ category });
   if (lake !== 'all') params.set('lake', lake);
+  if (sessionId) params.set('session', sessionId);
   return (
     <div className="mt-6 flex justify-center">
       <Link
@@ -329,6 +342,7 @@ export default async function DealersPage({
   searchParams?: Promise<{
     lake?: string | string[];
     category?: string | string[];
+    session?: string | string[];
   }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
@@ -336,6 +350,19 @@ export default async function DealersPage({
   const selectedCategory = normalizeCategoryFilter(
     resolvedSearchParams?.category
   );
+
+  // Present when the visitor arrived from a completed plan. Validated as a
+  // UUID so nothing malformed reaches ingest_outbound_click.
+  const rawSession = Array.isArray(resolvedSearchParams?.session)
+    ? resolvedSearchParams?.session[0]
+    : resolvedSearchParams?.session;
+  const sessionId =
+    rawSession &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      rawSession
+    )
+      ? rawSession
+      : undefined;
 
   // Database first. getDirectory() returns null on any failure, in which
   // case we fall back to the hardcoded arrays below and the page renders
@@ -419,7 +446,7 @@ export default async function DealersPage({
       : selectedCategory === 'comfort'
       ? 'Cooling / Comfort'
       : 'All categories';
-  const sourcePage = buildFilterHref(selectedLake, selectedCategory);
+  const sourcePage = buildFilterHref(selectedLake, selectedCategory, sessionId);
 
   return (
     <main className="min-h-screen bg-[#eef4f8] text-gray-900">
@@ -562,7 +589,7 @@ export default async function DealersPage({
           <div className="mb-10 space-y-4">
             <div className="flex flex-wrap gap-3">
               <Link
-                href={buildFilterHref('all', selectedCategory)}
+                href={buildFilterHref('all', selectedCategory, sessionId)}
                 className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   selectedLake === 'all'
                     ? 'border-cyan-500 bg-cyan-500 text-white'
@@ -574,7 +601,7 @@ export default async function DealersPage({
               {(['Lake of the Ozarks', 'Table Rock Lake'] as Lake[]).map((lake) => (
                 <Link
                   key={lake}
-                  href={buildFilterHref(lake, selectedCategory)}
+                  href={buildFilterHref(lake, selectedCategory, sessionId)}
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     selectedLake === lake
                       ? 'border-cyan-500 bg-cyan-500 text-white'
@@ -598,7 +625,7 @@ export default async function DealersPage({
               ).map(([category, label]) => (
                 <Link
                   key={category}
-                  href={buildFilterHref(selectedLake, category)}
+                  href={buildFilterHref(selectedLake, category, sessionId)}
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     selectedCategory === category
                       ? 'border-[#132a72] bg-[#132a72] text-white'
@@ -637,6 +664,7 @@ export default async function DealersPage({
                     {cap(filteredBoatDealers).map((dealer) => {
                       const outboundHref = buildOutboundHref({
                         destinationType: 'dealer',
+                        sessionId,
                         name: dealer.name,
                         lake: dealer.lake,
                         category: 'boats',
@@ -696,7 +724,7 @@ export default async function DealersPage({
                       );
                     })}
                   </div>
-                  <ViewAllLink shown={cap(filteredBoatDealers).length} total={filteredBoatDealers.length} category="boats" label="boat dealers" lake={selectedLake} />
+                  <ViewAllLink shown={cap(filteredBoatDealers).length} total={filteredBoatDealers.length} category="boats" label="boat dealers" lake={selectedLake} sessionId={sessionId} />
                   </>
                 ) : (
                   <EmptyState label="boat dealers" />
@@ -736,6 +764,7 @@ export default async function DealersPage({
                           provider.url
                             ? buildOutboundHref({
                                 destinationType: 'provider',
+                                sessionId,
                                 name: provider.name,
                                 lake: formatProviderLakeMetadata(
                                   provider.lakes,
@@ -750,7 +779,7 @@ export default async function DealersPage({
                       />
                     ))}
                   </div>
-                  <ViewAllLink shown={cap(coverProviders).length} total={coverProviders.length} category="covers" label="cover providers" lake={selectedLake} />
+                  <ViewAllLink shown={cap(coverProviders).length} total={coverProviders.length} category="covers" label="cover providers" lake={selectedLake} sessionId={sessionId} />
                   </>
                 ) : (
                   <EmptyState label="cover providers" />
@@ -789,6 +818,7 @@ export default async function DealersPage({
                           provider.url
                             ? buildOutboundHref({
                                 destinationType: 'provider',
+                                sessionId,
                                 name: provider.name,
                                 lake: formatProviderLakeMetadata(
                                   provider.lakes,
@@ -803,7 +833,7 @@ export default async function DealersPage({
                       />
                     ))}
                   </div>
-                  <ViewAllLink shown={cap(liftProviders).length} total={liftProviders.length} category="lifts" label="lift providers" lake={selectedLake} />
+                  <ViewAllLink shown={cap(liftProviders).length} total={liftProviders.length} category="lifts" label="lift providers" lake={selectedLake} sessionId={sessionId} />
                   </>
                 ) : (
                   <EmptyState label="lift providers" />
@@ -842,6 +872,7 @@ export default async function DealersPage({
                           provider.url
                             ? buildOutboundHref({
                                 destinationType: 'provider',
+                                sessionId,
                                 name: provider.name,
                                 lake: formatProviderLakeMetadata(
                                   provider.lakes,
@@ -856,7 +887,7 @@ export default async function DealersPage({
                       />
                     ))}
                   </div>
-                  <ViewAllLink shown={cap(comfortProviders).length} total={comfortProviders.length} category="comfort" label="comfort providers" lake={selectedLake} />
+                  <ViewAllLink shown={cap(comfortProviders).length} total={comfortProviders.length} category="comfort" label="comfort providers" lake={selectedLake} sessionId={sessionId} />
                   </>
                 ) : (
                   <EmptyState label="comfort providers" />
