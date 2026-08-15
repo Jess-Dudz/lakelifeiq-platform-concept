@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import ResultsClient from './results-client';
+import { getBoats } from '@/lib/boats-db';
 
 function ResultsLoadingFallback() {
   return (
@@ -45,10 +46,23 @@ function ResultsLoadingFallback() {
   );
 }
 
-export default function ResultsPage() {
+export default async function ResultsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Read usage here, on the server, so the fit score for the selected use
+  // case comes back with the boats in one round trip.
+  const params = await searchParams;
+  const usage =
+    (Array.isArray(params.usage) ? params.usage[0] : params.usage) ??
+    'Wakeboarding';
+
+  const boats = await getBoats(usage);
+
   return (
     <Suspense fallback={<ResultsLoadingFallback />}>
-      <ResultsClient />
+      <ResultsClient boats={boats} />
     </Suspense>
   );
 }
