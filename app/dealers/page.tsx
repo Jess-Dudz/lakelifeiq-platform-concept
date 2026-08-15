@@ -464,32 +464,52 @@ export default async function DealersPage({
               </div>
             </div>
 
-            <div className="space-y-4">
-              {shows.map((show) => (
-                <a
-                  key={show.name}
-                  href={show.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-[22px] border border-white/10 bg-[#15357f]/85 p-4 transition hover:bg-[#19418f]"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-cyan-200">
-                      {show.date}
+            <div className="space-y-2.5">
+              {shows.map((show, index) =>
+                index === 0 ? (
+                  // The next show gets full detail. It is the only one close
+                  // enough to act on, so it earns the space.
+                  <a
+                    key={show.name}
+                    href={show.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-[18px] border border-cyan-300/25 bg-[#15357f]/85 p-4 transition hover:bg-[#19418f]"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-cyan-200">
+                        {show.date}
+                      </p>
+                      {show.daysAway > 0 && show.daysAway <= 60 && (
+                        <span className="rounded-full bg-cyan-400/20 px-2.5 py-0.5 text-xs font-semibold text-cyan-100">
+                          {show.daysAway} days
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="mt-1 text-lg font-bold">{show.name}</h3>
+                    <p className="mt-1.5 text-sm text-white/75">
+                      {show.location}
                     </p>
-                    {show.daysAway > 0 && show.daysAway <= 60 && (
-                      <span className="rounded-full bg-cyan-400/20 px-2.5 py-0.5 text-xs font-semibold text-cyan-100">
-                        {show.daysAway} days
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="mt-1 text-lg font-bold">{show.name}</h3>
-                  <p className="mt-2 text-sm text-white/80">{show.location}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-white/70">
-                    {show.note}
-                  </p>
-                </a>
-              ))}
+                  </a>
+                ) : (
+                  // The rest are months out. A date and a name is enough;
+                  // the venue and blurb are noise at that distance.
+                  <a
+                    key={show.name}
+                    href={show.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-baseline justify-between gap-4 rounded-[14px] px-4 py-2.5 transition hover:bg-white/10"
+                  >
+                    <span className="text-sm font-semibold text-white/90">
+                      {show.name}
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold text-cyan-200/90">
+                      {show.date}
+                    </span>
+                  </a>
+                )
+              )}
             </div>
           </aside>
         </div>
