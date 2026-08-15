@@ -14,7 +14,10 @@ export type UpcomingEvent = {
   note: string;
   url: string;
   daysAway: number;
-  urgencyLabel: string;
+  typeLabel: string;
+  whyItMatters: string;
+  timingLabel: string;
+  isNext: boolean;
 };
 
 type DbEvent = {
@@ -27,7 +30,10 @@ type DbEvent = {
   note: string | null;
   url: string | null;
   days_away: number;
-  urgency_label: string;
+  type_label: string;
+  why_it_matters: string | null;
+  timing_label: string;
+  is_next: boolean;
 };
 
 export async function getUpcomingEvents(): Promise<UpcomingEvent[] | null> {
@@ -37,7 +43,7 @@ export async function getUpcomingEvents(): Promise<UpcomingEvent[] | null> {
 
   try {
     const res = await fetch(
-      `${url}/rest/v1/v_upcoming_events?select=*&limit=4`,
+      `${url}/rest/v1/v_upcoming_events?select=*&order=starts_on.asc&limit=5&is_active=eq.true`,
       {
         headers: { apikey: key, Authorization: `Bearer ${key}` },
         // Short cache: this is date-sensitive and should roll over promptly.
@@ -62,7 +68,10 @@ export async function getUpcomingEvents(): Promise<UpcomingEvent[] | null> {
       note: r.note ?? '',
       url: r.url ?? '#',
       daysAway: r.days_away,
-      urgencyLabel: r.urgency_label,
+      typeLabel: r.type_label,
+      whyItMatters: r.why_it_matters ?? '',
+      timingLabel: r.timing_label,
+      isNext: r.is_next,
     }));
   } catch (error) {
     console.error('Events fetch threw:', error);
