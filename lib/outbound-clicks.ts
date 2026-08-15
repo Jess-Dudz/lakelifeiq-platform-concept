@@ -2,6 +2,10 @@ export type OutboundDestinationType = 'dealer' | 'provider';
 
 export type OutboundClickPayload = {
   destinationType: OutboundDestinationType;
+  /** Links this click back to the plan that produced it. Absent for clicks
+   *  from the dealer directory, which is browsable without running a plan.
+   *  ingest_outbound_click already reads payload->>'sessionId'. */
+  sessionId?: string;
   slug: string;
   name: string;
   lake: string;
@@ -13,6 +17,7 @@ export type OutboundClickPayload = {
 
 type BuildOutboundHrefInput = {
   destinationType: OutboundDestinationType;
+  sessionId?: string;
   name: string;
   lake: string;
   category: string;
@@ -32,6 +37,7 @@ export function slugifyOutboundName(value: string) {
 
 export function buildOutboundHref({
   destinationType,
+  sessionId,
   name,
   lake,
   category,
@@ -45,6 +51,11 @@ export function buildOutboundHref({
     sourcePage,
     url: destinationUrl,
   });
+
+  // Only present when the click came from a completed plan.
+  if (sessionId) {
+    params.set('session', sessionId);
+  }
 
   return `/out/${destinationType}/${slugifyOutboundName(name)}?${params.toString()}`;
 }
