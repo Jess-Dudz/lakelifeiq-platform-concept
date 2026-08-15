@@ -865,6 +865,10 @@ export default function ResultsPage({ boats }: { boats: BoatWithFit[] }) {
             ? `${topRecommendation.brand} ${topRecommendation.model}`
             : 'No exact recommendation',
           remainingUpgradeBudget: remainingUpgradeBudgetLabel,
+          // Titles only. The API route looks each one up in the upgrades
+          // catalogue and builds the email from that, so nothing typed by a
+          // visitor can reach an inbox they chose.
+          upgradeTitles: recommendedUpgrades.slice(0, 5).map((u) => u.title),
           recommendedBudget: topRecommendation
             ? topRecommendation.budget === '30-60'
               ? '$30k–$60k'
