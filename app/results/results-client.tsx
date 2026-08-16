@@ -542,6 +542,64 @@ export default function ResultsPage({ boats }: { boats: BoatWithFit[] }) {
 
   const topRecommendation = recommendations[0];
   const alternateRecommendations = recommendations.slice(1, 3);
+
+  // Record what was shown, once the session exists to hang it off.
+  //
+  // plan_sessions captures the question. This captures the answer, in rank
+  // order, so a later click can be read as "beat these two" rather than just
+  // "happened". Runs after the session because plan_results.session_id is a
+  // NOT NULL foreign key.
+  //
+  // Deliberately no AbortController here, unlike the session effect above.
+  // This is a fire-and-forget write with nothing to read back, and a visitor
+  // who clicks through quickly would otherwise cancel their own attribution
+  // on unmount. Letting it finish is the point.
+  const resultsRecorded = useRef(false);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (resultsRecorded.current) return;
+
+    const shown = [topRecommendation, ...alternateRecommendations].filter(
+      (boat): boat is (typeof recommendations)[number] => Boolean(boat)
+    );
+
+    if (shown.length === 0) return;
+
+    resultsRecorded.current = true;
+
+    const selectedIndex = budgetBands.indexOf(selectedBudget as BudgetBand);
+
+    void fetch('/api/plan/results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId,
+        boats: shown.map((boat, index) => {
+          const boatIndex = budgetBands.indexOf(boat.budget as BudgetBand);
+
+          return {
+            slug: boat.id,
+            position: index + 1,
+            // In budget means at or below what the visitor said they would
+            // spend, not an exact band match. A $40k boat is in budget for
+            // someone shopping at $90k. Unknown bands record as null rather
+            // than guessing false.
+            inBudget:
+              selectedIndex >= 0 && boatIndex >= 0
+                ? boatIndex <= selectedIndex
+                : null,
+          };
+        }),
+      }),
+    }).catch(() => {
+      // A visitor must never see an error because telemetry failed.
+    });
+    // Fires once, when the session id arrives. The ranking is fixed for the
+    // life of this page, so re-running on prop changes would duplicate rows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
   const recommendedBoatName = topRecommendation
     ? `${topRecommendation.brand} ${topRecommendation.model}`
     : null;
